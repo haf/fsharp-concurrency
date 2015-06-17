@@ -1,152 +1,267 @@
-- title : FsReveal
-- description : Introduction to FsReveal
-- author : Karlkim Suwanmongkol
-- theme : night
+- title : Concurrency in F#
+- description : A presentation that describes the ins and outs of concurrency in F#
+- author : Henrik Feldt
+- theme : sky
 - transition : default
 
 ***
 
-### What is FsReveal?
-
-- Generates [reveal.js](http://lab.hakim.se/reveal-js/#/) presentation from [markdown](http://daringfireball.net/projects/markdown/)
-- Utilizes [FSharp.Formatting](https://github.com/tpetricek/FSharp.Formatting) for markdown parsing
-- Get it from [http://fsprojects.github.io/FsReveal/](http://fsprojects.github.io/FsReveal/)
-
-![FsReveal](images/logo.png)
+## Concurrency in F#
 
 ***
 
-### Reveal.js
+### Agenda
 
-- A framework for easily creating beautiful presentations using HTML.
+ - Concurrency Use-Cases
+ - Solution Mapping – A Broad Outline
+ - F# Async<>
+ - Hopac
 
-
-> **Atwood's Law**: any application that can be written in JavaScript, will eventually be written in JavaScript.
-
-***
-
-### FSharp.Formatting
-
-- F# tools for generating documentation (Markdown processor and F# code formatter).
-- It parses markdown and F# script file and generates HTML or PDF.
-- Code syntax highlighting support.
-- It also evaluates your F# code and produce tooltips.
+**Ask questions anytime!**
 
 ***
 
-### Syntax Highlighting
+### Me, me, me
 
-#### F# (with tooltips)
+The Philosofer of Software. <br />CEO for [qvitoo](https://qvitoo.com) - a startup, all F#, all unix.
 
-    let a = 5
-    let factorial x = [1..x] |> List.reduce (*)
-    let c = factorial a
+In the Empowerment, Dev, Ops roles.
 
----
+[@henrikfeldt](https://twitter.com/henrikfeldt) – [henrik@haf.se](mailto:henrik@haf.se)
 
-#### C#
-
-    [lang=cs]
-    using System;
-
-    class Program
-    {
-        static void Main()
-        {
-            Console.WriteLine("Hello, world!");
-        }
-    }
+' Passion for simple distributed systems and excellent user experiences
+' Been programming since 14, invoicing since 16.
+' Trying to understand and put words on the world.
+' Empowerment: making people grow. Lean.
+' Dev: making software.
+' Ops: operating software.
 
 ---
 
-#### JavaScript
+### OSS
 
-    [lang=js]
-    function copyWithEvaluation(iElem, elem) {
-        return function (obj) {
-            var newObj = {};
-            for (var p in obj) {
-                var v = obj[p];
-                if (typeof v === "function") {
-                    v = v(iElem, elem);
-                }
-                newObj[p] = v;
-            }
-            if (!newObj.exactTiming) {
-                newObj.delay += exports._libraryDelay;
-            }
-            return newObj;
-        };
-    }
+Authored:
 
+ - [Logary][logary] – actor based log, metrics, trace framework
+ - [albacore](https://github.com/Albacore/albacore/) - cross platform build framework
 
 ---
 
-#### Haskell
- 
-    [lang=haskell]
-    recur_count k = 1 : 1 : 
-        zipWith recurAdd (recur_count k) (tail (recur_count k))
-            where recurAdd x y = k * x + y
+Contributed/co-authored:
 
-    main = do
-      argv <- getArgs
-      inputFile <- openFile (head argv) ReadMode
-      line <- hGetLine inputFile
-      let [n,k] = map read (words line)
-      printf "%d\n" ((recur_count k) !! (n-1))
-
-*code from [NashFP/rosalind](https://github.com/NashFP/rosalind/blob/master/mark_wutka%2Bhaskell/FIB/fib_ziplist.hs)*
+ - [Suave](http://suave.io/) - Suave is a lightweight, non-blocking web server. Applicative Functors for control flow.
+ - [Http.fs](https://github.com/relentless/Http.fs) - Functional HTTP client
 
 ---
 
-### SQL
+### At Work
 
-    [lang=sql]
-    select *
-    from
-    (select 1 as Id union all select 2 union all select 3) as X
-    where Id in (@Ids1, @Ids2, @Ids3)
-
-*sql from [Dapper](https://code.google.com/p/dapper-dot-net/)*
-
----
-
-### C/AL
-
-    [lang=cal]
-    PROCEDURE FizzBuzz(n : Integer) r_Text : Text[1024];
-    VAR
-      l_Text : Text[1024];
-    BEGIN
-      r_Text := '';
-      l_Text := FORMAT(n);
-
-      IF (n MOD 3 = 0) OR (STRPOS(l_Text,'3') > 0) THEN
-        r_Text := 'Fizz';
-      IF (n MOD 5 = 0) OR (STRPOS(l_Text,'5') > 0) THEN
-        r_Text := r_Text + 'Buzz';
-      IF r_Text = '' THEN
-        r_Text := l_Text;
-    END;
+ - Previously Software Architect at large HR-software firm
+ - Set up Hybrid cloud/dc environment in AWS from scratch
+ - Set up continuous integration, continuous deployment, micro-services infrastructure
+ - Set up logging and metrics
+ - Set up hybrid win/unix CM environment
+ - Taught Distributed Systems
 
 ***
 
-**Bayes' Rule in LaTeX**
+### Concurrency Use-Cases
 
-$ \Pr(A|B)=\frac{\Pr(B|A)\Pr(A)}{\Pr(B|A)\Pr(A)+\Pr(B|\neg A)\Pr(\neg A)} $
+Concurrency is generally needed for two cases;
+
+ - Interleaving IO with computation
+ - Making things happen wall-clock faster
+
+---
+
+### This brings with it...
+
+ - Who/What?; Synchronisation / Coordination
+ - When?; Scheduling
+ - Relativity; Concurrent truths
+ - Peopleware; The need for an API design
+ - Properties; liveness, safety
+ - Values/Data; in rest, in transit & consistency
+
+---
+
+### Four Use-Cases:
+
+ 1. The web server (RPC servers)
+ 2. The web client (RPC clients)
+ 3. The distributed system (Messages, Consistency)
+ 4. The FRP app
+
+1, 2 are temporally coupled.
+
+3 is not so much.
+
+---
+
+### 1) The Web Server – Why
+
+Multiple clients connect to a server which serves **files**, **streams**, **dynamically
+generated content** or act as **coordinators** to tertiary systems.
+
+---
+
+### The Web Server – Constraints
+
+When implementing a web server;
+
+ - should be **stateless** (from a scale-out perspective)
+ - should **efficiently** and
+ - **concurrently** serve multiple clients
+ - should have a **low overhead** on top of application code
+
+' SL: the web server should not keep local per-request state
+' Eff: a slow reader should not starv other readers
+' Eff: execution at max load should be CPU bound for normal apps
+' Con: one execution context should not block others
+' OH: read lazily, 100 cont, low lvl internal coord
+
+---
+
+### The Web Server – How
+
+**chunk righteously**
+
+Stateless - no sessions
+
+Efficiency - precompute with partial application
+
+Efficiency - solve trade-off overhead+lazyness versus blocking+eagerness
+
+Concurrency - spawn green threads
+
+' chunk up, chunk down
+
+---
+
+### Use-Case 2 – The Web Client – Why
+
+OSI Layers, App Layers: <br />(IP -> TCP){1, n} -> Raw HTTP -> App HTTP -> App
+
+' mk conn, timeouts.
+' mk n conn, alts. commit.
+' mk n conn, retry. commit.
+' parse http
+' interpret app sem. http
+' act in app
+' choice: 'Alt', Async=Job
+
+---
+
+### Use-Case 2 – The Web Client – Constraints
+
+IP/TCP: Don't hang. Abstract socket, except timeouts and failure.
+
+Raw HTTP: Transparent redirects, retries, MD5 checksums, Not Modified, etc
+
+App HTTP: Hypermedia Navigation, conneg, langneg, value modulation/serialisation, etc
+
+App: opt-in deal with all semantics above
+
+' ---
+' ### Use-Case 2 – The Web Client – How
+
+---
+
+### Use-Case 3 – The Distributed System – Why
+
+
+
+---
+
+### Use-Case 3 – The Distributed System – Constraints
+
+---
+
+### Use-Case 3 – The Distributed System – How
+
 
 ***
 
-### The Reality of a Developer's Life 
+### Solution Mapping
 
-**When I show my boss that I've fixed a bug:**
-  
-![When I show my boss that I've fixed a bug](http://www.topito.com/wp-content/uploads/2013/01/code-07.gif)
-  
-**When your regular expression returns what you expect:**
-  
-![When your regular expression returns what you expect](http://www.topito.com/wp-content/uploads/2013/01/code-03.gif)
-  
-*from [The Reality of a Developer's Life - in GIFs, Of Course](http://server.dzone.com/articles/reality-developers-life-gifs)*
+ * Multiprogramming (aka threads)
+ * Cooperative Multithreading
+
+***
+
+### Multiprogramming
+
+Standard on macrokernel level.i  Yields efficiency for fairness.
+
+Slice time into quantas:
+
+    [lang=c]
+    #define RR_TIMESLICE            (100 * HZ / 1000)
+
+On interrupt, save a *process control block*.
+
+---
+
+E.g. Apache when nginx came out.
+
+Hard to do coordination & synchronisation right.
+
+![C programmers](images/c-programmers.png)
+
+' Source: http://forums.xkcd.com/viewtopic.php?f=11&t=109964
+
+---
+
+### Sources of errors
+
+ - Heisenbugs
+ - Race Conditions
+ - Process states:
+   - Responsive
+   - Unresponsive, up
+   - Responsive, corrupt
+   - Crashed
+   - 'Clean shut down'
+ - Trade-offs:
+   - Availability → Non-safety
+   - Safety → Non-Availability
+
+***
+
+### Cooperative Multithreading
+
+Standard inside apps, on microkernel level. Fairness up to programmer.
+
+Two flavours;
+
+ 1. interrupt driven/push
+ 2. pull/select
+
+***
+
+### F# Async<>
+
+    [lang=fsharp]
+    let sendMessage (stream : Stream) (msg : Msg) = async {
+      use ms = new MemoryStream() // TODO: re-use MS?
+      Serializer.Serialize(ms, msg)
+      let len = int (ms.Position)
+      ms.Seek(0L, SeekOrigin.Begin) |> ignore
+      do! writeLen len stream
+      do! transfer len ms stream
+      }
+
+' Source: https://github.com/logary/logary/blob/master/src/targets/Logary.Targets.Riemann/Client.fs
+
+### Hopac
+
+
+
+### References
+
+ [logary]: https://github.com/logary/logary
+ [vrr]: http://pmg.csail.mit.edu/papers/vr-revisited.pdf
+ [hopac-p]: https://github.com/Hopac/Hopac/blob/master/Docs/Programming.md
+ [hopac-ies]: https://docs.google.com/presentation/d/1Yowsc3MV9xWqHJ3u11B0xYqqqeK368BW_dfZ9_H0WJI/edit?pli=1#slide=id.g9142b12c1_1_45
+ [towards-verifiable-es]: http://rd.host.cs.st-andrews.ac.uk/publications/itces06.pdf
 
