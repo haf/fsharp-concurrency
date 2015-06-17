@@ -191,7 +191,7 @@ App: opt-in deal with all semantics above
 
 ### Multiprogramming
 
-Standard on macrokernel level.i  Yields efficiency for fairness.
+Standard on macrokernel level. Yields efficiency for fairness.
 
 Slice time into quantas:
 
